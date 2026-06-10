@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Mono", monospace;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-surface: #fbf9f8;
+  --color-surface-dim: #dbdad9;
+  --color-surface-bright: #fbf9f8;
+  --color-surface-container: #efedec;
+  --color-on-surface: #1b1c1b;
+  --color-on-surface-variant: #3c4b36;
+  --color-primary: #106e00;
+  --color-primary-container: #37f712;
+  --color-on-primary-container: #106c00;
+  --color-text-main: #78716B;
+  --color-error: #ba1a1a;
+  --color-danger: #ba1a1a;
+}
+
+@keyframes scan {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.scanline {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: rgba(55, 247, 18, 0.08);
+  animation: scan 5s linear infinite;
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+.hard-shadow {
+  box-shadow: 4px 4px 0px 0px rgba(16, 110, 0, 1);
+}
+
+/* Base style resets if needed */
+body {
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+}

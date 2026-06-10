@@ -1,0 +1,6 @@
+{
+  "name": "Short Mono",
+  "description": "A high-density terminal-aesthetic URL compression utility and redirection service with analytics and automated deletion protocol.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
