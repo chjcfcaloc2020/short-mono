@@ -49,7 +49,7 @@ export default function Navbar({ author = "Provided by" }: NavbarProps) {
               {author}
             </span>
             <a href="https://github.com/chjcfcaloc2020/short-mono" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
-              <img src="../../public/github.png" />
+              <img src="/github.png" />
             </a>
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function Navbar({ author = "Provided by" }: NavbarProps) {
               <User className="w-3.5 h-3.5 text-primary" />
               <span className="font-mono text-[10px] text-text-main max-w-25 truncate">{author}</span>
               <a href="https://github.com/chjcfcaloc2020/short-mono" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
-                <img src="../../public/github.png" />
+                <img src="/github.png" />
               </a>
             </div>
           )}
