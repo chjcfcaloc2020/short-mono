@@ -14,19 +14,18 @@ import {
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import StatsGrid from "./components/StatsGrid";
-import type { ShortLink, SystemStats, ExpiryOption } from "./types";
+import type { ShortLink, ExpiryOption } from "./types";
 
 const EXPIRY_OPTIONS: ExpiryOption[] = [
-  { label: "15M", value: 15 },
-  { label: "30M", value: 30 },
-  { label: "1H", value: 60 },
-  { label: "1D", value: 1440 },
-  { label: "NEVER", value: 0 },
+  { label: "15M", value: "15m" },
+  { label: "30M", value: "30m" },
+  { label: "1H", value: "60m" },
+  { label: "1D", value: "1d" },
+  { label: "NEVER", value: "never" },
 ];
 
 export default function App() {
   const [url, setUrl] = useState("");
-  const [customCode, setCustomCode] = useState("");
   const [selectedExpiry, setSelectedExpiry] = useState<ExpiryOption>(EXPIRY_OPTIONS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -35,16 +34,10 @@ export default function App() {
 
   // Advanced link list & analytics
   const [linksList, setLinksList] = useState<ShortLink[]>([]);
-  const [stats, setStats] = useState<SystemStats>({
-    activeLinks: 3,
-    totalClicks: 265,
-    status: "CORE_READY",
-    uptime: 0
-  });
 
   // Load client stats & any cached links
   useEffect(() => {
-    fetchStats();
+    handleRefreshClicks();
     // Pre-populate some dummy local links in the table for a lively layout
     const cached = localStorage.getItem("short_mono_links");
     if (cached) {
@@ -53,55 +46,8 @@ export default function App() {
       } catch (e) {
         console.error("Failed to parse cached links", e);
       }
-    } else {
-      // Set initial defaults matching server preset
-      const mockInitial: ShortLink[] = [
-        {
-          id: "sys-1",
-          originalUrl: "https://ai.studio/build",
-          shortCode: "build",
-          createdAt: new Date().toISOString(),
-          expiresAt: null,
-          clicks: 142
-        },
-        {
-          id: "sys-2",
-          originalUrl: "https://github.com",
-          shortCode: "gh",
-          createdAt: new Date().toISOString(),
-          expiresAt: null,
-          clicks: 89
-        },
-        {
-          id: "sys-3",
-          originalUrl: "https://vite.dev",
-          shortCode: "vite",
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          clicks: 34
-        }
-      ];
-      setLinksList(mockInitial);
-      localStorage.setItem("short_mono_links", JSON.stringify(mockInitial));
     }
   }, []);
-
-  const fetchStats = async () => {
-    try {
-      const res = await fetch("/api/stats");
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (e) {
-      console.warn("Express server offline, operating in client-fallback mode.");
-    }
-  };
-
-  // Resolve short URL absolute path based on environment
-  const getAbsoluteShortUrl = (code: string) => {
-    return `${window.location.origin}/r/${code}`;
-  };
 
   // Truncate helper
   const truncateText = (text: string, len: number = 40) => {
@@ -116,18 +62,16 @@ export default function App() {
       setErrorMsg("ERR: CHOOSE A SUITABLE TARGET LONG URL PROTOCOL");
       return;
     }
-
     setIsLoading(true);
     setErrorMsg("");
 
     try {
       const payload = {
         url: url.trim(),
-        expiryMinutes: selectedExpiry.value,
-        customCode: customCode.trim() || undefined
+        expireIn: selectedExpiry.value,
       };
 
-      const response = await fetch("/api/shorten", {
+      const response = await fetch("http://localhost:8080/api/urls/shorten", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -139,7 +83,6 @@ export default function App() {
       }
 
       const newLink: ShortLink = await response.json();
-
       // Update local state
       setRecentLink(newLink);
 
@@ -149,9 +92,6 @@ export default function App() {
 
       // Reset inputs
       setUrl("");
-      setCustomCode("");
-      fetchStats();
-
     } catch (e: any) {
       setErrorMsg(e.message || "COULD NOT CONNECT TO TRANSIT ROUTER. PLEASE TRY AGAIN.");
     } finally {
@@ -160,19 +100,53 @@ export default function App() {
   };
 
   const handleDelete = async (code: string) => {
-    if (!confirm(`Are you sure you want to stop telemetry for link /r/${code}?`)) {
+    if (!confirm(`Are you sure you want to stop telemetry for link ${code}?`)) {
       return;
     }
+
     try {
-      await fetch(`/api/links/${code}`, { method: "DELETE" });
+      await fetch(`http://localhost:8080/api/urls/${code}`, { method: "DELETE" });
     } catch (e) {
-      console.warn("Core was unable to synchronize deletion with server.");
+      console.log("Core was unable to synchronize deletion with server.");
     }
 
     const updated = linksList.filter((link) => link.shortCode !== code);
     setLinksList(updated);
     localStorage.setItem("short_mono_links", JSON.stringify(updated));
-    fetchStats();
+  };
+
+  const handleRefreshClicks = async () => {
+    if (linksList.length === 0) return;
+
+    try {
+      setIsLoading(true);
+
+      // Gửi batch request để cập nhật clicks cho tất cả links
+      const response = await fetch("http://localhost:8080/api/urls/batch/clicks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shortCodes: linksList.map(link => link.shortCode)
+        })
+      });
+
+      if (response.ok) {
+        const updatedData = await response.json();
+
+        // Merge dữ liệu mới với state hiện tại
+        const updatedLinks = linksList.map(link => {
+          const updated = updatedData.find((item: any) => item.shortCode === link.shortCode);
+          return updated ? { ...link, clicks: updated.clicks } : link;
+        });
+
+        setLinksList(updatedLinks);
+        localStorage.setItem("short_mono_links", JSON.stringify(updatedLinks));
+      }
+    } catch (e) {
+      console.error("Failed to refresh clicks", e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyToClipboard = (text: string, code: string) => {
@@ -300,7 +274,7 @@ export default function App() {
                   <div className="space-y-1.5 max-w-[70%]">
                     <p className="font-mono text-[10px] text-text-main font-semibold uppercase tracking-widest">ENCODED_OUTPUT_PATH:</p>
                     <p className="font-sans text-xl md:text-2xl font-bold text-primary select-all break-all">
-                      {getAbsoluteShortUrl(recentLink.shortCode)}
+                      {import.meta.env.VITE_URL_LOCAL + "/" + recentLink.shortCode}
                     </p>
                     <p className="font-mono text-[11px] text-text-main select-none truncate" title={recentLink.originalUrl}>
                       Original: <span className="underline">{recentLink.originalUrl}</span>
@@ -312,9 +286,12 @@ export default function App() {
                     )}
                   </div>
 
-                  <div className="flex gap-2 w-full md:w-auto">
+                  <div className="space-y-2 md:w-auto">
                     <button
-                      onClick={() => copyToClipboard(getAbsoluteShortUrl(recentLink.shortCode), recentLink.shortCode)}
+                      onClick={() => copyToClipboard(
+                        import.meta.env.VITE_BASE_URL + "/" + recentLink.shortCode,
+                        recentLink.shortCode
+                      )}
                       className="grow md:flex-none flex items-center justify-center gap-2 bg-surface text-on-surface border-2 border-text-main px-4 py-2 font-mono text-xs hover:bg-surface-container transition-all active:scale-95"
                     >
                       {copiedLinkCode === recentLink.shortCode ? (
@@ -331,7 +308,7 @@ export default function App() {
                     </button>
 
                     <a
-                      href={`/r/${recentLink.shortCode}`}
+                      href={import.meta.env.VITE_URL_LOCAL + "/" + recentLink.shortCode}
                       target="_blank"
                       rel="noreferrer"
                       className="grow md:flex-none flex items-center justify-center gap-2 bg-primary text-white border-2 border-text-main px-4 py-2 font-mono text-xs hover:bg-white hover:text-primary transition-all active:scale-95"
@@ -358,7 +335,7 @@ export default function App() {
               </div>
 
               <button
-                onClick={fetchStats}
+                onClick={handleRefreshClicks}
                 className="p-1 px-3 border border-text-main hover:bg-surface-container font-mono text-[10px] text-text-main flex items-center gap-1.5 transition-all active:scale-95 bg-white"
                 title="Sync metrics"
               >
@@ -376,6 +353,7 @@ export default function App() {
                       <th className="p-3">IDENTIFIER</th>
                       <th className="p-3">TARGET LONG PROTOCOL</th>
                       <th className="p-3 hidden md:table-cell">CREATED</th>
+                      <th className="p-3 hidden md:table-cell">EXPIRES</th>
                       <th className="p-3">LIFETIME</th>
                       <th className="p-3 text-center">CLICKS</th>
                       <th className="p-3 text-right">DISPATCH</th>
@@ -384,7 +362,7 @@ export default function App() {
                   <tbody className="divide-y divide-text-main/10">
                     {linksList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-text-main">
+                        <td colSpan={7} className="p-8 text-center text-text-main">
                           <div className="flex flex-col items-center justify-center space-y-2">
                             <Info className="w-8 h-8 text-text-main/40" />
                             <p className="font-bold">&gt;_ DECK_EMPTY</p>
@@ -394,12 +372,11 @@ export default function App() {
                       </tr>
                     ) : (
                       linksList.map((link) => {
-                        const isSystem = link.id.startsWith("sys") || link.id.startsWith("system");
                         return (
                           <tr key={link.shortCode} className="hover:bg-surface-container/40 transition-colors">
                             {/* Shortened target code */}
                             <td className="p-3 font-bold text-primary max-w-30 truncate">
-                              <span className="text-text-main font-normal mr-0.5">/r/</span>{link.shortCode}
+                              <span className="text-text-main font-normal mr-0.5">/</span>{link.shortCode}
                             </td>
 
                             {/* Original destination */}
@@ -410,6 +387,11 @@ export default function App() {
                             {/* Creation time */}
                             <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]">
                               {new Date(link.createdAt).toLocaleTimeString()}
+                            </td>
+
+                            {/* Expiration time */}
+                            <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]">
+                              {link.expiresAt ? new Date(link.expiresAt).toLocaleTimeString() : "NEVER"}
                             </td>
 
                             {/* Remaining lifespan */}
@@ -438,7 +420,10 @@ export default function App() {
                               <div className="flex items-center justify-end gap-1">
                                 {/* Copy */}
                                 <button
-                                  onClick={() => copyToClipboard(getAbsoluteShortUrl(link.shortCode), link.shortCode)}
+                                  onClick={() => copyToClipboard(
+                                    import.meta.env.VITE_BASE_URL + "/" + link.shortCode,
+                                    link.shortCode
+                                  )}
                                   className="p-1.5 border border-text-main/30 hover:border-primary hover:bg-primary/5 rounded-sm text-text-main hover:text-primary transition-all active:scale-90"
                                   title="Copy short link"
                                 >
@@ -451,7 +436,7 @@ export default function App() {
 
                                 {/* Direct launch */}
                                 <a
-                                  href={`/r/${link.shortCode}`}
+                                  href={import.meta.env.VITE_URL_LOCAL + "/" + link.shortCode}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="p-1.5 border border-text-main/30 hover:border-primary hover:bg-primary/5 rounded-sm text-text-main hover:text-primary transition-all active:scale-95"

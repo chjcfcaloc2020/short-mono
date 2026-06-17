@@ -35,7 +35,7 @@ export default function Footer() {
             Terms
           </a>
           <a
-            href="https://github.com"
+            href="https://github.com/chjcfcaloc2020/"
             target="_blank"
             rel="noreferrer"
             className="font-mono text-xs text-text-main hover:text-primary transition-opacity duration-200"
