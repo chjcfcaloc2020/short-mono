@@ -37,8 +37,6 @@ export default function App() {
 
   // Load client stats & any cached links
   useEffect(() => {
-    handleRefreshClicks();
-    // Pre-populate some dummy local links in the table for a lively layout
     const cached = localStorage.getItem("short_mono_links");
     if (cached) {
       try {
@@ -71,7 +69,7 @@ export default function App() {
         expireIn: selectedExpiry.value,
       };
 
-      const response = await fetch("http://localhost:8080/api/urls/shorten", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/urls/shorten`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -105,7 +103,7 @@ export default function App() {
     }
 
     try {
-      await fetch(`http://localhost:8080/api/urls/${code}`, { method: "DELETE" });
+      await fetch(`${import.meta.env.VITE_API_URL}/api/urls/${code}`, { method: "DELETE" });
     } catch (e) {
       console.log("Core was unable to synchronize deletion with server.");
     }
@@ -122,7 +120,7 @@ export default function App() {
       setIsLoading(true);
 
       // Gửi batch request để cập nhật clicks cho tất cả links
-      const response = await fetch("http://localhost:8080/api/urls/batch/clicks", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/urls/batch/clicks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -274,7 +272,7 @@ export default function App() {
                   <div className="space-y-1.5 max-w-[70%]">
                     <p className="font-mono text-[10px] text-text-main font-semibold uppercase tracking-widest">ENCODED_OUTPUT_PATH:</p>
                     <p className="font-sans text-xl md:text-2xl font-bold text-primary select-all break-all">
-                      {import.meta.env.VITE_URL_LOCAL + "/" + recentLink.shortCode}
+                      {import.meta.env.VITE_API_URL + "/" + recentLink.shortCode}
                     </p>
                     <p className="font-mono text-[11px] text-text-main select-none truncate" title={recentLink.originalUrl}>
                       Original: <span className="underline">{recentLink.originalUrl}</span>
@@ -289,7 +287,7 @@ export default function App() {
                   <div className="space-y-2 md:w-auto">
                     <button
                       onClick={() => copyToClipboard(
-                        import.meta.env.VITE_BASE_URL + "/" + recentLink.shortCode,
+                        import.meta.env.VITE_API_URL + "/" + recentLink.shortCode,
                         recentLink.shortCode
                       )}
                       className="grow md:flex-none flex items-center justify-center gap-2 bg-surface text-on-surface border-2 border-text-main px-4 py-2 font-mono text-xs hover:bg-surface-container transition-all active:scale-95"
@@ -308,7 +306,7 @@ export default function App() {
                     </button>
 
                     <a
-                      href={import.meta.env.VITE_URL_LOCAL + "/" + recentLink.shortCode}
+                      href={import.meta.env.VITE_API_URL + "/" + recentLink.shortCode}
                       target="_blank"
                       rel="noreferrer"
                       className="grow md:flex-none flex items-center justify-center gap-2 bg-primary text-white border-2 border-text-main px-4 py-2 font-mono text-xs hover:bg-white hover:text-primary transition-all active:scale-95"
@@ -385,12 +383,12 @@ export default function App() {
                             </td>
 
                             {/* Creation time */}
-                            <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]">
+                            <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]" title={new Date(link.createdAt).toLocaleString()}>
                               {new Date(link.createdAt).toLocaleTimeString()}
                             </td>
 
                             {/* Expiration time */}
-                            <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]">
+                            <td className="p-3 text-text-main/70 hidden md:table-cell text-[11px]" title={link.expiresAt ? new Date(link.expiresAt).toLocaleString() : "NULL"}>
                               {link.expiresAt ? new Date(link.expiresAt).toLocaleTimeString() : "NEVER"}
                             </td>
 
@@ -421,7 +419,7 @@ export default function App() {
                                 {/* Copy */}
                                 <button
                                   onClick={() => copyToClipboard(
-                                    import.meta.env.VITE_BASE_URL + "/" + link.shortCode,
+                                    import.meta.env.VITE_API_URL + "/" + link.shortCode,
                                     link.shortCode
                                   )}
                                   className="p-1.5 border border-text-main/30 hover:border-primary hover:bg-primary/5 rounded-sm text-text-main hover:text-primary transition-all active:scale-90"
@@ -436,7 +434,7 @@ export default function App() {
 
                                 {/* Direct launch */}
                                 <a
-                                  href={import.meta.env.VITE_URL_LOCAL + "/" + link.shortCode}
+                                  href={import.meta.env.VITE_API_URL + "/" + link.shortCode}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="p-1.5 border border-text-main/30 hover:border-primary hover:bg-primary/5 rounded-sm text-text-main hover:text-primary transition-all active:scale-95"
